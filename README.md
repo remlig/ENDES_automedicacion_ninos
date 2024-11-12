@@ -11,5 +11,5 @@ El código se desarrolló para ser empleado con el programa STATA
 Los datos empleados provienen de los dtos públicos de la Encuesta Demográfica y de Salud Familiar (ENDES) del año 2022, del Instituto Nacional de Estadística e Informática (INEI) 
 https://proyectos.inei.gob.pe/microdatos/
 
-##F INALIDAD
+## FINALIDAD
 El código permite fusionar las bases de datos y crear variables para analizar la automedicación antibiótica en niños con fiebre o tos, y diarrea en niños menores de 60 meses.
