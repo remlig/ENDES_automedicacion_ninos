@@ -1,0 +1,284 @@
+********************************************************************************
+********************************FUSIÓN DE BASES*********************************
+********************************************************************************
+
+* Configurar la carpeta con las bases originales
+cd "C:\Users\GilmerSolis\01 - Bases"
+
+* Unificar bases
+**Base de niños
+use REC21
+rename BIDX HIDX
+save REC21_mod
+clear
+
+use REC95
+rename IDX95 HIDX
+merge 1:1 CASEID HIDX using REC43
+drop _merge
+merge 1:1 CASEID HIDX using REC21_mod
+drop _merge
+save niños
+clear
+
+
+**Base de hogares
+use RECH4
+tostring IDXH4, gen(Id_case)
+gen CASEID = HHID+"  "+Id_case if IDXH4<10
+replace CASEID = HHID+" "+Id_case if IDXH4>9
+save RECH4_mod
+clear
+
+use RECH0
+merge 1:1 HHID using RECH23
+drop _merge
+merge 1:m HHID using RECH1
+drop _merge
+tostring HVIDX, gen(Id_case)
+gen CASEID = HHID+"  "+Id_case if HVIDX<10
+replace CASEID = HHID+" "+Id_case if HVIDX>9
+merge 1:1 CASEID using RECH4_mod
+drop _merge
+save hogares
+clear
+
+
+**Base de individuos
+use RE223132
+merge 1:1 CASEID using RE516171
+drop _merge
+merge 1:1 CASEID using REC0111
+drop _merge
+save individuos
+
+
+**Unión de base de individuos y hogares
+merge 1:1 CASEID using hogares
+drop _merge
+save indiv_hog
+
+
+**Unión de base individuos y hogares con la de niños
+merge 1:m CASEID using niños
+drop _merge
+save base_fusionada
+
+
+********************************************************************************
+************************IDENTIFICACIÓN DE SUBPOBLACIONES************************
+********************************************************************************
+
+* Poblaciones de análisis
+gen edad_niño=V008-B3
+
+** Población con fiebre
+gen pop_fiebre=0 & edad_niño<60
+replace pop_fiebre = 1 if (H22==1 | H22==2) & edad_niño<60
+replace pop_fiebre = . if edad_niño>59
+
+** Población con tos
+gen pop_tos=0 & edad_niño<60
+replace pop_tos = 1 if (H31==1 | H31==2) & edad_niño<60
+replace pop_tos = . if edad_niño>59
+
+** Población con fiebre y/0 tos
+gen pop_fiebre_o_tos=0 & edad_niño<60
+replace pop_fiebre_o_tos = 1 if ((H22==1 | H22==2) | (H31==1 | H31==2)) & edad_niño<60
+replace pop_fiebre_o_tos = . if edad_niño>59
+
+** Población con diarrea
+gen pop_diarrea=0
+replace pop_diarrea = 1 if (H11==1 | H11==2) & edad_niño<60
+replace pop_diarrea = . if edad_niño>59
+
+** Población con fiebre y/o tos y diarrea
+gen pop_fiebre_tos_y_diarrea=0 & edad_niño<60
+replace pop_fiebre_tos_y_diarrea= 1 if (((H22==1 | H22==2) | (H31==1 | H31==2)) & (H11==1 | H11==2)) & edad_niño<60
+replace pop_fiebre_tos_y_diarrea = . if edad_niño>59
+
+
+
+********************************************************************************
+*****************************CREACIÓN DE VARIABLES******************************
+********************************************************************************
+
+
+* VARIABLES DEL NIÑO
+**Sexo del niño
+clonevar sexo_niño=B4
+
+** Etario niño
+gen etario_niño=.
+replace etario_niño=1 if edad_niño<12
+replace etario_niño=2 if edad_niño>11 & edad_niño<24
+replace etario_niño=3 if edad_niño>23 & edad_niño<36
+replace etario_niño=4 if edad_niño>35 & edad_niño<48
+replace etario_niño=5 if edad_niño>47 & edad_niño<60
+la def etario_niño 1 "De 0 11 meses" 2 "De 12 a 23 meses" 3 "De 24 a 35 meses" 4 "De 36 a 47 meses" 5 "De 48 a 60 meses"
+la val etario_niño etario_niño
+la var etario_niño "Edad del niño"
+
+** Fue llevado a control CRED en los últimos 6 meses
+gen cred=S466
+recode cred (0=1) (1=2) (8=1)
+la def cred 1 "No" 2 "Sí", replace
+la val cred cred
+la var cred "Fue llevado a control CRED en los últimos 6 meses"
+
+
+********************************************************************************
+
+* VARIABLES DE LA MADRE Y DE LA PAREJA
+** Edad de la madre
+gen edad_madre = V012
+recode edad_madre (min/17=1) (18/29=2) (30/39=3) (40/49=4)
+la var edad_madre "Edad de la madre"
+la def edad_madre 1 "Adolescente (menos de 18 años)" 2 "Joven (18 a 29 años)" 3 "Adulto joven (30 a 39 años)" 4 "Adulto (40 a 49 años)"
+la val edad_madre edad_madre
+la var edad_madre "Edad de la madre"
+
+** Edad del conyuge
+gen edad_conyuge = V730
+recode edad_conyuge (15/17=1) (18/29=2) (30/59=3) (60/max=4) (.=5)
+la def edad_conyuge 1 "Adolescente (<18 años)" 2 "Adulto joven (18 a 29 años)" 3 "Adulto (30 a 59 años)" 4 "Adulto mayor (60 años a más)" 5 "Ns/Nr"
+la val edad_conyuge edad_conyuge
+la var edad_conyuge "Edad del cónyuge"
+
+** Educación de la madre
+clonevar educa_madre = V106
+la var educa_madre "Nivel educativo de la madre"
+
+** Educación del cónyuge
+gen Educa_conyuge = V701
+recode Educa_conyuge (8=4) (.=4)
+la def Educa_conyuge 0 "Sin nivel" 1 Primaria 2 Secundaria 3 Superior 4 "No sabe / No responde"
+la val Educa_conyuge Educa_conyuge
+la var Educa_conyuge "Nivel educativo del cónyuge"
+
+** Estado civil
+clonevar estado_conyugal = V502
+la var estado_conyugal "Estado conyugal"
+recode estado_conyugal (0=2)
+la def estado_conyugal 1 "Con conyuge (Casada o conviviente)" 2 "Sin cónyuge (Viuda, divorciada, no conviviendo)"
+la val estado_conyugal estado_conyugal
+
+** Número de hijos
+egen total_hijos=max(V224), by(CASEID)
+gen núm_hijos=.
+replace núm_hijos=1 if total_hijos==1
+replace núm_hijos=2 if total_hijos==2
+replace núm_hijos=3 if total_hijos>2
+la def núm_hijos 1 "Hijo único" 2 "Tiene dos hijos" 3 "Tiene tres hijos" 4 "Tiene tres hijos a más"
+la val núm_hijos núm_hijos
+
+** Condición laboral de la madre
+clonevar trabajo_madre=V714
+la var trabajo_madre "Condición laboral de la madre"
+
+** Condición laboral del cónyuge
+gen trabajo_conyuge = V705
+recode trabajo_conyuge (2/9=1) (.=2)
+la def trabajo_conyuge 0 "No trabaja" 1 "Sí trabaja" 2 "No sabe / No responde"
+la val trabajo_conyuge trabajo_conyuge
+la var trabajo_conyuge "Condición laboral del cónyuge"
+
+** Variable lengua materna
+gen lengua_materna = V131
+recode lengua_materna (10=1) (1=2) (2/9=2) (11/12=1)
+la def lengua_materna 1 "Castellano y otros idiomas extranjeros" 2 "Lenguas nativas u originarias"
+la val lengua_materna lengua_materna
+la var lengua_materna "Etnicidad según lengua materna"
+
+** Variable Tenencia de seguro de salud
+clonevar seguro = SH11Z
+recode seguro (0=1) (1=0)
+la var seguro "Cuenta con seguro de salud"
+
+** Tipo de seguro
+gen seguro_estatal=0
+replace seguro_estatal = 1 if SH11A==1 | SH11C==1
+la var seguro_estatal "Seguro estatal (MINSA/EsSalud)"
+
+clonevar seguro_militar=SH11B
+la var seguro_militar "Seguro de fuerzas armadas"
+
+gen seguro_privado=0
+replace seguro_privado = 1 if SH11D==1 | SH11E==1
+la def seguro_privado 0 "No" 1 "Sí"
+la val seguro_privado seguro_privado
+la var seguro_privado "Seguro privado/particular"
+
+clonevar seguro_NsNr=SH11Y
+la var seguro_NsNr "Ns/Nr si cuenta con seguro"
+
+
+********************************************************************************
+
+* VARIABLES DEL HOGAR
+** Región natural
+clonevar region = SHREGION
+la var region "Región natural"
+
+** Lugar de residencia
+clonevar lugar_residencia = HV025
+la var lugar_residencia "Lugar de residencia"
+
+** Índice de riqueza
+clonevar riqueza = HV270
+la var riqueza "Índice de riqueza"
+
+
+********************************************************************************
+
+
+* VARIABLES DE AUTOMEDICACIÓN ANTIBIÓTICA
+** Automedicación Antibiótica por tos
+gen automed_tos=.
+replace automed_tos = 1 if pop_tos==1 & (H37G==1 & (H46A==23 | H46A==24 | H46A==31 | H46A==32 | H32K==1 | H32O==1 | H32T==1 | H32U==1))
+replace automed_tos = 0 if pop_tos==1 & automed_tos!=1
+
+** Automedicación Antibiótica por fiebre
+gen automed_fiebre=.
+replace automed_fiebre = 1 if pop_fiebre==1 & (H37G==1 & (H46A==23 | H46A==24 | H46A==31 | H46A==32 | H32K==1 | H32O==1 | H32T==1 | H32U==1))
+replace automed_fiebre = 0 if pop_fiebre==1 & automed_fiebre!=1
+
+** Automedicación Antibiótica para diarrea
+gen automed_diarrea=.
+replace automed_diarrea = 1 if pop_diarrea==1 & ((H15==1 | H15B==1) & (H44A==23 | H44A==24 | H44A==31 | H44A==32 | H12K==1 | H12O==1 | H12T==1 | H12U==1))
+replace automed_diarrea = 0 if pop_diarrea==1 & automed_diarrea!=1
+
+** Automedicación Antibiótica por fiebre y/o tos
+gen automed_fiebre_o_tos=.
+replace automed_fiebre_o_tos = 1 if pop_fiebre_o_tos==1 & (H37G==1 & (H46A==23 | H46A==24 | H46A==31 | H46A==32 | H32K==1 | H32O==1 | H32T==1 | H32U==1))
+replace automed_fiebre_o_tos = 0 if pop_fiebre_o_tos==1 & automed_fiebre_o_tos!=1
+
+** Automedicación Antibiótica por fiebre y/o tos y diarrea
+gen automed_fiebre_tos_y_diarrea=.
+replace automed_fiebre_tos_y_diarrea = 1 if pop_fiebre_tos_y_diarrea==1 & (automed_diarrea==1 | automed_tos==1 | automed_fiebre==1)
+replace automed_fiebre_tos_y_diarrea = 0 if pop_fiebre_tos_y_diarrea==1 & automed_fiebre_tos_y_diarrea!=1
+
+
+********************************************************************************
+
+* VARIABLE PARA MUESTREO COMPLEJO
+**Generar variable de ponderación
+gen ponderación=HV005/1000000
+
+
+
+
+********************************************************************************
+******************************BASE DE DATOS FINAL*******************************
+********************************************************************************
+
+* Grabar base fusionada y con variables creadas
+save base_final
+
+
+********************************************************************************
+*******************CONFIGURACIÓN (SETEO) DE MUESTREO COMPLEJO*******************
+********************************************************************************
+
+* Seteo de la base de datos
+svyset HV001 [pw=ponderación], strata(HV022) singleunit(centered)
