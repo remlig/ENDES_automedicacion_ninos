@@ -12,4 +12,7 @@ Los datos empleados provienen de los dtos públicos de la Encuesta Demográfica 
 https://proyectos.inei.gob.pe/microdatos/
 
 ## FINALIDAD
-El código permite fusionar las bases de datos y crear variables para analizar la automedicación antibiótica en niños con fiebre o tos, y diarrea en niños menores de 60 meses.
+El código permite fusionar las bases de datos y crear variables para analizar la automedicación antibiótica en niños con fiebre o tos, y diarrea en niños menores de 60 meses; como parte de la investigación desarrollada en la Facultad de Medicina Humana de la Universidad de Piura.
+
+## CONTACTO
+Profesor Gilmer Solis Sánchez, e-mail: gilmer.solis@udep.edu.pe
